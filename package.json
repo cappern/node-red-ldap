@@ -1,0 +1,22 @@
+{
+  "name": "@cappern/node-red-ldap",
+  "version": "0.1.0",
+  "description": "Another ldap node for node-red",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cappern/node-red-ldap.git"
+  },
+  "keywords": [
+    "node-red"
+  ],
+  "author": "cappern",
+  "license": "AGPL-3.0-or-later",
+  "bugs": {
+    "url": "https://github.com/cappern/node-red-ldap/issues"
+  },
+  "homepage": "https://github.com/cappern/node-red-ldap#readme"
+}
