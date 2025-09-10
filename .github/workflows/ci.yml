@@ -65,7 +65,7 @@ jobs:
       - name: List artifacts
         run: ls -al dist
       - name: Publish to npm
-        run: npm publish dist/*.tgz
+        run: npm publish --access public ./dist/*.tgz
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Create GitHub Release
