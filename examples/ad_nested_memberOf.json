@@ -1,0 +1,89 @@
+[
+  {
+    "id": "ad01tab000000001",
+    "type": "tab",
+    "label": "AD Nested memberOf Search",
+    "disabled": false,
+    "info": "Active Directory example: find all users that are (directly or indirectly) members of a given group using the nested memberOf matching rule 1.2.840.113556.1.4.1941."
+  },
+  {
+    "id": "ad01cfg000000001",
+    "type": "cappern-ldap-config",
+    "name": "AD (LDAPS)",
+    "host": "ad.example.com",
+    "port": 636,
+    "protocol": "ldaps",
+    "tlsInsecure": false,
+    "base": "DC=a1,DC=cappelen,DC=org",
+    "credentials": {
+      "bindDN": "",
+      "bindCredentials": "",
+      "ca": ""
+    }
+  },
+  {
+    "id": "ad01inj000000001",
+    "type": "inject",
+    "z": "ad01tab000000001",
+    "name": "Group CN (e.g. Domain Admins)",
+    "props": [
+      { "p": "payload" }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "Domain Admins",
+    "payloadType": "str",
+    "x": 210,
+    "y": 140,
+    "wires": [["ad01fnc000000001"]]
+  },
+  {
+    "id": "ad01fnc000000001",
+    "type": "function",
+    "z": "ad01tab000000001",
+    "name": "Build AD nested memberOf filter",
+    "func": "// Input: msg.payload = group commonName (CN)\n// Adjust domainDN/container as needed.\nconst groupCN = String(msg.payload || '').trim();\nconst domainDN = msg.domainDN || 'DC=a1,DC=cappelen,DC=org';\nconst groupContainer = msg.groupContainer || `CN=Users,${domainDN}`; // common built-in container\nconst groupDN = `CN=${groupCN},${groupContainer}`;\n\nmsg.base = domainDN;\nmsg.scope = 'sub';\nmsg.filter = `(&(objectClass=user)(memberOf:1.2.840.113556.1.4.1941:=${groupDN}))`;\nmsg.attributes = ['cn','mail','distinguishedName','sAMAccountName','userPrincipalName'];\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 520,
+    "y": 140,
+    "wires": [["ad01ldap00000001"]]
+  },
+  {
+    "id": "ad01ldap00000001",
+    "type": "cappern-ldap",
+    "z": "ad01tab000000001",
+    "name": "Search AD (nested memberOf)",
+    "ldap": "ad01cfg000000001",
+    "base": "",
+    "filter": "(objectClass=*)",
+    "scope": "sub",
+    "attributes": "",
+    "x": 830,
+    "y": 140,
+    "wires": [["ad01dbg000000001"]]
+  },
+  {
+    "id": "ad01dbg000000001",
+    "type": "debug",
+    "z": "ad01tab000000001",
+    "name": "Users in group (recursive)",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 1090,
+    "y": 140,
+    "wires": []
+  }
+]

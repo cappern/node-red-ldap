@@ -1,0 +1,119 @@
+[
+  {
+    "id": "f3c0c1de9b1a4aad",
+    "type": "tab",
+    "label": "Fetch Group Members Recursively",
+    "disabled": false,
+    "info": "Expand a group's members recursively, following nested groups. Outputs an array of user entries."
+  },
+  {
+    "id": "c3f0a2b3c4d5e6f9",
+    "type": "cappern-ldap-config",
+    "name": "Example LDAP",
+    "host": "ldap.example.com",
+    "port": 389,
+    "protocol": "ldap",
+    "tlsInsecure": false,
+    "base": "dc=example,dc=com",
+    "credentials": {
+      "bindDN": "",
+      "bindCredentials": "",
+      "ca": ""
+    }
+  },
+  {
+    "id": "3111223344556678",
+    "type": "inject",
+    "z": "f3c0c1de9b1a4aad",
+    "name": "Root group cn",
+    "props": [
+      { "p": "payload" }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "engineering",
+    "payloadType": "str",
+    "x": 150,
+    "y": 140,
+    "wires": [["3211223344556678"]]
+  },
+  {
+    "id": "3211223344556678",
+    "type": "function",
+    "z": "f3c0c1de9b1a4aad",
+    "name": "Init recursion",
+    "func": "const cn = String(msg.payload || '').trim();\n// Adjust OUs as needed for your directory\nmsg.groupOU = msg.groupOU || 'ou=groups,dc=example,dc=com';\nmsg.peopleOU = msg.peopleOU || 'ou=people,dc=example,dc=com';\nmsg.groupDN = `cn=${cn},${msg.groupOU}`;\nmsg._queue = [ msg.groupDN ];\nmsg._seen = {};\nmsg._users = [];\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 360,
+    "y": 140,
+    "wires": [["3311223344556678"]]
+  },
+  {
+    "id": "3311223344556678",
+    "type": "function",
+    "z": "f3c0c1de9b1a4aad",
+    "name": "Dequeue next DN",
+    "func": "const q = msg._queue || [];\nif (!q.length) {\n  msg.payload = msg._users || [];\n  delete msg._queue; delete msg._seen; delete msg._users; delete msg.currentDN;\n  return [null, msg]; // done\n}\nconst dn = q.shift();\nmsg.currentDN = dn;\nmsg._queue = q;\n// Prepare search for this DN at base scope\nmsg.base = dn;\nmsg.scope = 'base';\nmsg.filter = '(objectClass=*)';\nif (/^cn=/i.test(dn)) {\n  // group entry: fetch members-related attributes\n  msg.attributes = ['cn','member','uniqueMember','memberUid'];\n} else {\n  // user entry: fetch typical user attributes\n  msg.attributes = ['dn','cn','uid','mail','objectClass'];\n}\nreturn [msg, null];",
+    "outputs": 2,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 590,
+    "y": 140,
+    "wires": [["3411223344556678"],["3611223344556678"]]
+  },
+  {
+    "id": "3411223344556678",
+    "type": "cappern-ldap",
+    "z": "f3c0c1de9b1a4aad",
+    "name": "Lookup DN",
+    "ldap": "c3f0a2b3c4d5e6f9",
+    "base": "",
+    "filter": "(objectClass=*)",
+    "scope": "base",
+    "attributes": "",
+    "x": 790,
+    "y": 140,
+    "wires": [["3511223344556678"]]
+  },
+  {
+    "id": "3511223344556678",
+    "type": "function",
+    "z": "f3c0c1de9b1a4aad",
+    "name": "Process entry",
+    "func": "const dn = String(msg.currentDN || '').trim();\nconst entries = Array.isArray(msg.payload) ? msg.payload : [];\nconst seen = msg._seen || {};\nmsg._seen = seen;\nif (/^cn=/i.test(dn)) {\n  // Group: enqueue members (avoid duplicates)\n  const e = entries[0] || {};\n  let members = [];\n  if (Array.isArray(e.member)) members = e.member;\n  else if (Array.isArray(e.uniqueMember)) members = e.uniqueMember;\n  else if (Array.isArray(e.memberUid)) {\n    const basePeople = msg.peopleOU || 'ou=people,dc=example,dc=com';\n    members = e.memberUid.map(u => `uid=${u},${basePeople}`);\n  }\n  for (const m of members) {\n    if (typeof m !== 'string') continue;\n    const key = m.toLowerCase();\n    if (!seen[key]) {\n      seen[key] = true;\n      msg._queue.push(m);\n    }\n  }\n} else {\n  // User: collect entry\n  if (entries[0]) {\n    const u = entries[0];\n    u.dn = dn;\n    msg._users = msg._users || [];\n    msg._users.push(u);\n  }\n}\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 980,
+    "y": 140,
+    "wires": [["3311223344556678"]]
+  },
+  {
+    "id": "3611223344556678",
+    "type": "debug",
+    "z": "f3c0c1de9b1a4aad",
+    "name": "All users (result)",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 820,
+    "y": 220,
+    "wires": []
+  }
+]

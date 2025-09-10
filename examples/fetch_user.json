@@ -1,0 +1,89 @@
+[
+  {
+    "id": "f1a0c1de9b1a4aab",
+    "type": "tab",
+    "label": "Fetch User by uid",
+    "disabled": false,
+    "info": "Inject a cn, build an LDAP filter, search under people OU, output matching user entry/entries."
+  },
+  {
+    "id": "c1f0a2b3c4d5e6f7",
+    "type": "cappern-ldap-config",
+    "name": "Example LDAP",
+    "host": "ldap.example.com",
+    "port": 389,
+    "protocol": "ldap",
+    "tlsInsecure": false,
+    "base": "dc=example,dc=com",
+    "credentials": {
+      "bindDN": "",
+      "bindCredentials": "",
+      "ca": ""
+    }
+  },
+  {
+    "id": "0a1b2c3d4e5f6a70",
+    "type": "inject",
+    "z": "f1a0c1de9b1a4aab",
+    "name": "User uid",
+    "props": [
+      { "p": "payload" }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "alice",
+    "payloadType": "str",
+    "x": 160,
+    "y": 120,
+    "wires": [["a1b2c3d4e5f6a7b8"]]
+  },
+  {
+    "id": "a1b2c3d4e5f6a7b8",
+    "type": "function",
+    "z": "f1a0c1de9b1a4aab",
+    "name": "Build user filter",
+    "func": "const uid = String(msg.payload || '').trim();\nmsg.base = msg.base || 'ou=people,dc=example,dc=com';\nmsg.filter = `(cn=${uid})`;\nmsg.scope = 'sub';\nmsg.attributes = ['dn','uid','cn','mail'];\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 390,
+    "y": 120,
+    "wires": [["b1c2d3e4f5a6b7c8"]]
+  },
+  {
+    "id": "b1c2d3e4f5a6b7c8",
+    "type": "cappern-ldap",
+    "z": "f1a0c1de9b1a4aab",
+    "name": "Find user",
+    "ldap": "c1f0a2b3c4d5e6f7",
+    "base": "",
+    "filter": "(objectClass=*)",
+    "scope": "sub",
+    "attributes": "",
+    "x": 590,
+    "y": 120,
+    "wires": [["c1d2e3f4a5b6c7d8"]]
+  },
+  {
+    "id": "c1d2e3f4a5b6c7d8",
+    "type": "debug",
+    "z": "f1a0c1de9b1a4aab",
+    "name": "User entries",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 780,
+    "y": 120,
+    "wires": []
+  }
+]

@@ -1,0 +1,133 @@
+<script type="text/x-red" data-template-name="cappern-ldap-config">
+  <div class="form-row">
+    <label for="node-config-input-host"><i class="fa fa-server"></i> Host</label>
+    <input type="text" id="node-config-input-host" placeholder="ldap.example.com">
+  </div>
+  <div class="form-row">
+    <label for="node-config-input-port"><i class="fa fa-plug"></i> Port</label>
+    <input type="number" id="node-config-input-port" placeholder="389">
+  </div>
+  <div class="form-row">
+    <label for="node-config-input-protocol"><i class="fa fa-lock"></i> Protocol</label>
+    <select id="node-config-input-protocol">
+      <option value="ldap">ldap</option>
+      <option value="ldaps">ldaps</option>
+    </select>
+  </div>
+  <div class="form-row">
+    <label for="node-config-input-tlsInsecure"><i class="fa fa-shield"></i> Ignore TLS errors</label>
+    <input type="checkbox" id="node-config-input-tlsInsecure">
+  </div>
+  <div class="form-row">
+    <label for="node-config-input-ca"><i class="fa fa-certificate"></i> CA Certificates (PEM)</label>
+    <textarea style="width: 100%; height: 120px;" id="node-config-input-ca" placeholder="-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----"></textarea>
+  </div>
+  <div class="form-row">
+    <label for="node-config-input-base"><i class="fa fa-sitemap"></i> Base DN</label>
+    <input type="text" id="node-config-input-base" placeholder="dc=example,dc=com">
+  </div>
+  <div class="form-row">
+    <label for="node-config-input-bindDN"><i class="fa fa-user"></i> Bind DN</label>
+    <input type="text" id="node-config-input-bindDN">
+  </div>
+  <div class="form-row">
+    <label for="node-config-input-bindCredentials"><i class="fa fa-key"></i> Password</label>
+    <input type="password" id="node-config-input-bindCredentials">
+  </div>
+</script>
+
+<script type="text/x-red" data-help-name="cappern-ldap-config">
+  <p>LDAP connection settings shared by LDAP nodes.</p>
+  <p>
+    Options:
+    <ul>
+      <li><b>Protocol</b>: ldap or ldaps.</li>
+      <li><b>Port</b>: override server port. Defaults by protocol:</li>
+      <ul>
+        <li><code>ldap</code>: 389</li>
+        <li><code>ldaps</code>: 636</li>
+      </ul>
+      <li><b>Ignore TLS errors</b>: when using ldaps, disables certificate verification (insecure).</li>
+      <li><b>CA Certificates (PEM)</b>: optional trusted CA bundle for ldaps connections.</li>
+    </ul>
+  </p>
+  <p>
+    Tip: changing <b>Protocol</b> updates the default <b>Port</b> automatically if you haven't set a custom port.
+  </p>
+</script>
+
+<script type="text/javascript">
+  (function() {
+    RED.nodes.registerType('cappern-ldap-config', {
+      category: 'config',
+      defaults: {
+        host: { 
+          value: '', 
+          required: true, 
+          validate: function(v) {
+            try {
+              var val = (v || '').trim();
+              if (!val) return false;
+              // Accept simple hostnames/domains (a-z0-9.-_) or IPv6/IPv4 literals
+              var hostOk = /^[A-Za-z0-9._-]+$/.test(val) || /^[0-9a-fA-F:]+$/.test(val);
+              if (!hostOk) return false;
+              // Set default port if empty, based on selected protocol
+              var proto = (RED && RED.$)? RED.$('#node-config-input-protocol').val() : (window.jQuery? jQuery('#node-config-input-protocol').val() : 'ldap');
+              var defPort = proto === 'ldaps' ? 636 : 389;
+              var $port = (RED && RED.$)? RED.$('#node-config-input-port') : (window.jQuery? jQuery('#node-config-input-port') : null);
+              if ($port && ($port.val() === '' || $port.val() == null)) {
+                $port.val(String(defPort));
+              } else if ($port) {
+                // Keep placeholder in sync for clarity without overriding user input
+                $port.attr('placeholder', String(defPort));
+              }
+              return true;
+            } catch (e) {
+              return false;
+            }
+          }
+        },
+        
+        port: { value: 389, required: true, validate: RED.validators.number() },
+        protocol: { value: 'ldap' },
+        base: { value: '' },
+        tlsInsecure: { value: false }
+      },
+      credentials: {
+        bindDN: { type: 'text' },
+        bindCredentials: { type: 'password' },
+        ca: { type: 'text' }
+      },
+      oneditprepare: function() {
+        var $ = RED.$;
+        var $proto = $('#node-config-input-protocol');
+        var $port = $('#node-config-input-port');
+
+        function setPlaceholder() {
+          var def = $proto.val() === 'ldaps' ? 636 : 389;
+          $port.attr('placeholder', String(def));
+        }
+
+        function maybeSetDefaultPort(oldProto) {
+          var current = ($port.val() || '').trim();
+          var oldDefault = oldProto === 'ldaps' ? 636 : 389;
+          var newDefault = $proto.val() === 'ldaps' ? 636 : 389;
+          if (current === '' || current === String(oldDefault)) {
+            $port.val(String(newDefault));
+          }
+          setPlaceholder();
+        }
+
+        setPlaceholder();
+        var prev = $proto.val();
+        $proto.on('change', function() { maybeSetDefaultPort(prev); prev = $proto.val(); });
+      },
+      label: function() {
+        const proto = this.protocol || 'ldap';
+        const host = this.host || 'host';
+        const port = this.port || (proto === 'ldaps' ? 636 : 389);
+        return `${proto}://${host}:${port}`;
+      }
+    });
+  })();
+  </script>

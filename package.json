@@ -4,19 +4,42 @@
   "description": "Another ldap node for node-red",
   "main": "index.js",
   "scripts": {
-    "test": "mocha"
+    "test": "mocha --timeout 8000",
+    "test:coverage": "nyc -r text-summary -r lcov mocha --timeout 8000",
+    "coverage": "npm run test:coverage"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/cappern/node-red-ldap.git"
   },
   "keywords": [
-    "node-red"
+    "node-red",
+    "ldap"
   ],
   "author": "cappern",
   "license": "AGPL-3.0-or-later",
   "bugs": {
     "url": "https://github.com/cappern/node-red-ldap/issues"
   },
-  "homepage": "https://github.com/cappern/node-red-ldap#readme"
+  "homepage": "https://github.com/cappern/node-red-ldap#readme",
+  "node-red": {
+    "version": ">=2.0.0",
+    "nodes": {
+      "cappern-ldap": "nodes/ldap.js",
+      "cappern-ldap-config": "nodes/ldap-config.js"
+    }
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "ldapts": "^8.0.9"
+  },
+  "devDependencies": {
+    "chai": "^5.1.1",
+    "mocha": "^10.7.3",
+    "node-red-node-test-helper": "^0.3.5",
+    "node-red": "^4.1.0",
+    "nyc": "^15.1.0"
+  }
 }

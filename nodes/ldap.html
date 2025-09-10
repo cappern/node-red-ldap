@@ -1,0 +1,239 @@
+<script type="text/x-red" data-template-name="cappern-ldap">
+  <div class="form-row">
+    <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+    <input type="text" id="node-input-name" placeholder="Name">
+  </div>
+  <div class="form-row">
+    <label for="node-input-ldap"><i class="fa fa-cog"></i> LDAP Config</label>
+    <input type="text" id="node-input-ldap">
+  </div>
+  <div class="form-row">
+    <label for="node-input-base"><i class="fa fa-sitemap"></i> Default Base DN</label>
+    <input type="text" id="node-input-base" placeholder="dc=example,dc=com">
+  </div>
+  <div class="form-row">
+    <label for="node-input-filter"><i class="fa fa-filter"></i> Default Filter</label>
+    <input type="text" id="node-input-filter" placeholder="(objectClass=*)">
+  </div>
+  <div class="form-row">
+    <label for="node-input-scope"><i class="fa fa-search"></i> Scope</label>
+    <select id="node-input-scope">
+      <option value="base">base</option>
+      <option value="one">one</option>
+      <option value="sub">sub</option>
+    </select>
+  </div>
+  <div class="form-row">
+    <label for="node-input-attributes"><i class="fa fa-list"></i> Attributes</label>
+    <input type="text" id="node-input-attributes" placeholder="cn,mail,sn">
+  </div>
+</script>
+<script type="text/x-red" data-help-name="cappern-ldap">
+  <p>An LDAP search node using <code>ldapts</code>.</p>
+  <p>
+    Configure server URL (e.g. <code>ldap://host:389</code>), Base DN, optional filter,
+    scope and attributes. Optionally set Bind DN and Password for authenticated searches.
+  </p>
+  <p>
+    Message overrides:
+    <ul>
+      <li><code>msg.base</code>, <code>msg.filter</code>, <code>msg.scope</code>, <code>msg.attributes</code></li>
+      <li><code>msg.bindDN</code>, <code>msg.bindCredentials</code> (override config if provided)</li>
+    </ul>
+  </p>
+  <p>
+    Output: <code>msg.payload</code> is an array of entry objects.
+  </p>
+  <h4>Examples</h4>
+  <p>
+    1) Find a user by uid
+    <ul>
+      <li>Set node <b>Default Base DN</b> to <code>dc=example,dc=com</code>.</li>
+      <li>Use a Change node to set <code>msg.filter</code> to <code>(uid={{payload}})</code>.</li>
+      <li>Send a string payload like <code>alice</code>. Result entries go to <code>msg.payload</code>.</li>
+    </ul>
+  </p>
+  <pre><code>{
+  "payload": "alice",
+  "filter": "(uid={{payload}})"
+}</code></pre>
+
+  <p>
+    2) Return specific attributes only
+    <ul>
+      <li>Set node <b>Attributes</b> to <code>cn,mail,sn</code>, or set <code>msg.attributes</code> dynamically.</li>
+      <li><code>msg.attributes</code> accepts a comma-separated string or an array.</li>
+    </ul>
+  </p>
+  <pre><code>{
+  "base": "ou=people,dc=example,dc=com",
+  "filter": "(objectClass=person)",
+  "attributes": ["cn", "mail", "sn"]
+}</code></pre>
+
+  <p>
+    3) Scope usage
+    <ul>
+      <li><b>base</b>: fetch only the entry at the Base DN.</li>
+      <li><b>one</b>: search one level below the Base DN.</li>
+      <li><b>sub</b>: search entire subtree (default).</li>
+    </ul>
+  </p>
+  <pre><code>{
+  "base": "ou=people,dc=example,dc=com",
+  "filter": "(cn=Alice*)",
+  "scope": "one"
+}</code></pre>
+
+  <p>
+    4) Search as end-user (runtime bind)
+    <ul>
+      <li>Provide <code>msg.bindDN</code> and <code>msg.bindCredentials</code> to bind as the user for this search.</li>
+      <li>Overrides credentials from the LDAP config node for this message only.</li>
+    </ul>
+  </p>
+  <pre><code>{
+  "bindDN": "uid=alice,ou=people,dc=example,dc=com",
+  "bindCredentials": "user-password",
+  "base": "dc=example,dc=com",
+  "filter": "(uid=alice)"
+}</code></pre>
+
+  <p>
+    5) Dynamic base per request
+    <ul>
+      <li>Use <code>msg.base</code> to search different OUs without editing the node.</li>
+    </ul>
+  </p>
+  <pre><code>{
+  "base": "ou=groups,dc=example,dc=com",
+  "filter": "(objectClass=groupOfNames)"
+}</code></pre>
+
+  <p>
+    6) Build DN and query group membership
+    <ul>
+      <li>Many directories store group members by DN. Build the DN, then search groups by <code>member</code>.</li>
+    </ul>
+  </p>
+  <pre><code>// Function node before LDAP
+const uid = msg.payload; // e.g. "alice"
+msg.userDN = `uid=${uid},ou=people,dc=example,dc=com`;
+msg.base = "ou=groups,dc=example,dc=com";
+msg.filter = `(member=${msg.userDN})`;
+return msg;</code></pre>
+
+  <p>
+    7) Handle errors
+    <ul>
+      <li>On error, the node adds <code>msg.error = { name, code, message }</code> and sets status text.</li>
+      <li>Use a Switch node on <code>msg.error</code> to branch success vs failure.</li>
+    </ul>
+  </p>
+  <pre><code>{
+  "base": "dc=example,dc=com",
+  "filter": "(uid=unknown)"
+  // On connection/bind/search error, see msg.error
+}</code></pre>
+
+  <p>
+    8) Add a user to a group (modify)
+    <ul>
+      <li>This package's <b>ldap</b> node performs searches. To modify membership, use a Function node with external modules enabled (Node-RED setting <code>functionExternalModules: true</code>) and <code>ldapts</code>, or use an <b>exec</b> node with <code>ldapmodify</code>.</li>
+      <li>Example using <code>ldapts</code> in a Function node (adds a DN to <code>member</code>):</li>
+    </ul>
+  </p>
+  <pre><code>// Settings prerequisite: enable functionExternalModules in Node-RED settings.
+// Function node code:
+const { Client, Change, Attribute } = require('ldapts');
+
+const url = 'ldap://ldap.example.com:389';
+const bindDN = 'cn=admin,dc=example,dc=com';
+const bindCredentials = 'secret';
+
+const userDN = `uid=${msg.uid},ou=people,dc=example,dc=com`;
+const groupDN = `cn=${msg.group},ou=groups,dc=example,dc=com`;
+
+(async () => {
+  const client = new Client({ url });
+  try {
+    await client.bind(bindDN, bindCredentials);
+    await client.modify(groupDN, new Change({
+      operation: 'add',
+      modification: new Attribute({ type: 'member', values: [userDN] })
+    }));
+    msg.payload = { status: 'added', groupDN, member: userDN };
+    node.status({ fill: 'green', shape: 'dot', text: 'member added' });
+    node.send(msg);
+  } catch (err) {
+    node.error(err, msg);
+  } finally {
+    try { await client.unbind(); } catch(e) {}
+  }
+})();
+return null; // async handled
+</code></pre>
+
+  <p>
+    Alternatively, using an Exec node with <code>ldapmodify</code> (LDIF via stdin):
+  </p>
+  <pre><code>// Function -> Exec flow
+// Function builds LDIF in msg.payload
+const userDN = `uid=${msg.uid},ou=people,dc=example,dc=com`;
+const groupDN = `cn=${msg.group},ou=groups,dc=example,dc=com`;
+msg.payload = `dn: ${groupDN}\nchangeType: modify\nadd: member\nmember: ${userDN}\n`;
+return msg;
+
+// Exec node command example (adjust path/flags):
+// ldapmodify -H ldap://ldap.example.com:389 -D "cn=admin,dc=example,dc=com" -w secret -f -
+</code></pre>
+
+  <p>
+    9) Nest a group into another group (group member)
+    <ul>
+      <li>Use the same approach as above but add the child group's DN as a <code>member</code> of the parent group.</li>
+    </ul>
+  </p>
+  <pre><code>// Child and parent group DNs
+const childGroupDN = `cn=${msg.child},ou=groups,dc=example,dc=com`;
+const parentGroupDN = `cn=${msg.parent},ou=groups,dc=example,dc=com`;
+// With ldapts (Change/Attribute as above):
+await client.modify(parentGroupDN, new Change({
+  operation: 'add',
+  modification: new Attribute({ type: 'member', values: [childGroupDN] })
+}));
+</code></pre>
+
+  <p>
+    Notes:
+    <ul>
+      <li>If no <code>msg.base</code> is provided, the node uses its own Base DN or the LDAP config Base DN.</li>
+      <li>When <code>attributes</code> is empty, the server default attribute set is returned.</li>
+      <li><code>msg.payload</code> is always an array (may be empty).</li>
+      <li>Membership attribute names vary by schema: common are <code>member</code> (groupOfNames/AD) and <code>uniqueMember</code> (groupOfUniqueNames). For POSIX groups, use <code>memberUid</code> with the user's uid value.</li>
+    </ul>
+  </p>
+</script>
+
+<script type="text/javascript">
+  (function() {
+    RED.nodes.registerType('cappern-ldap', {
+      category: 'function',
+      color: '#dedede',
+      defaults: {
+        name: { value: '' },
+        ldap: { value: '', type: 'cappern-ldap-config', required: true },
+        base: { value: '', required: false },
+        filter: { value: '(objectClass=*)' },
+        scope: { value: 'sub' },
+        attributes: { value: '' }
+      },
+      inputs: 1,
+      outputs: 1,
+      icon: 'font-awesome/fa-address-book-o',
+      label: function() {
+        return this.name || 'ldap';
+      }
+    });
+  })();
+</script>
